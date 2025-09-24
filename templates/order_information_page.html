@@ -1,0 +1,19 @@
+{% extends 'base.html' %}
+
+<head>
+    {% load static %}
+    <link rel="stylesheet" type="text/css" href="{% static 'css/main.css' %}">
+  <meta charset="utf-8">
+    <title>HIII</title>
+</head>
+{% block content %}
+    <p class="main_title" style="left: 409px; top:140px;">Этнографические данные</p>
+    <div id="information_card">
+        <img id="card_img_app" src={{ data.image }}>
+        <div id="card_title_inf">{{ data.title }}</div>
+        <div class="card_information_inf" style="left: 895px; top:50px;">{{ data.more_information|linebreaksbr }}</div>
+        <div id="rect" style="top:16px; left: 897px;"></div>
+        <div id="rect" style="top:27px; left: 897px;"></div>
+        <div id="rect" style="top:38px; left: 897px;"></div>
+    </div>
+{% endblock %}
