@@ -1,0 +1,34 @@
+{% extends 'base.html' %}
+{% block title %}Список заказов{% endblock %}
+
+{% block content %}
+    <div id="menu"></div>
+    <div id="grey-block-2"></div>
+    <li><a href="{% url 'orders_url' %}"><div id="ser">Услуги</div></a> </li>
+    <img id="orders_img" src="http://localhost:9000/static/img/orders.png">
+    <img id="application_img" src="http://localhost:9000/static/img/application.png">
+    <div id="app">Заявки</div>
+
+
+    <div class="main_title" style="top: 100px; left: 456px;">Составление заявки</div>
+    <div id="mini_title_app">Введите площадь территории:                кв. км</div>
+    <input id="rect_input">
+    <div id="btn_enter">Рассчитать</div>
+
+    <div id="app_cont">
+        {% for order in data.orders %}
+            {% if order.app_flag %}
+                <div id="application_card">
+                    <img id="card_img_app_2" src={{ order.image }}>
+                    <div id="title_app_card">{{ order.title }}</div>
+                    <div id="inf_app_card">{{ order.main_information }}</div>
+                    <div id="rect" style="top:-10px; left: 678px;"></div>
+                    <input type="text" id="app_input" placeholder="  Ваш комментарий">
+                    <div id="app_rect">Рассчитанная численность: <br> 270 человек</div>
+                </div>
+            {% endif %}
+        {% endfor %}
+    </div>
+
+
+{% endblock %}
