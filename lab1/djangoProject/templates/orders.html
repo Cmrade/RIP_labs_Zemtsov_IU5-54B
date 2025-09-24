@@ -17,10 +17,10 @@
     <p class="main_title" style="top: 100px; left:455px">Этнографические данные</p>
     <div id="white_rect"></div>
 
-    <li><a href="{% url 'application_url' 1 %}"><div id="app">Заявки</div></a> </li>
+    <li><a href="{% url 'application_page_url' 1 %}"><div id="app">Заявки</div></a> </li>
     <div class="cards">
     {% for order in data.orders %}
-        <div id="card"><a href="{% url 'order_url' order.id %}" style="text-decoration: none">
+        <div id="card"><a href="{% url 'order_information_page_url' order.id %}" style="text-decoration: none">
             <img id="card_img" src={{ order.image }}>
             <div id="flag">услуга</div>
             <div id="rect"></div>
@@ -30,4 +30,5 @@
         </div>
     {% endfor %}
     </div>
+
 {% endblock %}
