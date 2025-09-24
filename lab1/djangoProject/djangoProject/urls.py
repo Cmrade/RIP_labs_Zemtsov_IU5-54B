@@ -20,9 +20,10 @@ from bmstu_lab import views
 urlpatterns = [
     path('admin/', admin.site.urls),
     path('', views.GetOrders),
-    path('order/<int:id>/', views.GetOrder, name='order_url'),
+    path('order_information_page/<int:id>/', views.GetOrder, name='order_url'),
     path('sendText', views.sendText, name='sendText'),
-    path('orders', views.GetOrders, name='orders_url'),
-    path('application/<int:id>', views.GetApplication, name='application_url'),
-    path('orders', views.sendText, name='orders_search_url'),
+    path('orders_page', views.GetOrders, name='orders_url'),
+    path('application_page/<int:id>', views.GetApplication, name='application_url'),
+    path('orders_page', views.sendText, name='orders_search_url'),
+
 ]
