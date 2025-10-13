@@ -25,5 +25,7 @@ urlpatterns = [
     path('orders_page', views.get_orders_list_page, name='orders_url'),
     path('application_page/<int:id>', views.GetApplication, name='application_url'),
     path('orders_page/search', views.sendText, name='orders_search_url'),
+    path('add_to_application/<int:order_id>/', views.add_to_application, name='add_to_application_url'),
+    path('delete_application/<int:application_id>/', views.delete_application, name='delete_application_url'),
     #path('orders_page', views.status_to_true, name='add_to_application'),
 ]

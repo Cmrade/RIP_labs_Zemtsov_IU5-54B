@@ -243,6 +243,25 @@
     background-color: rgb(147, 65, 15);
 }
 
+#delete_application{
+    position: relative;
+    width: 220px;
+    height: 50px;
+    font-family: 'NotoColorEmoji-Regular', NotoEmoji, monospace;
+    font-weight: bold;
+    color: rgb(251, 251, 251);
+    font-size: 20px;
+    background-color: rgb(255, 0, 0);
+    border-style: none;
+    border-radius: 15px;
+    box-shadow: 4px 4px 4px 0 rgba(0, 0, 0, 0.1);
+    left: 455px;
+    top: 20px;
+}
+#delete_application:hover{
+    background-color: rgb(181, 0, 0);
+}
+
 #rect{
     position: relative;
     width: 30px;

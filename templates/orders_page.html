@@ -17,7 +17,7 @@
     <p class="main_title" style="top: 100px; left:455px">Этнографические данные</p>
     <div id="white_rect"></div>
 
-    <li><a href="{% url 'application_url' 1 %}"><div id="app">Заявки</div></a> </li>
+    <li><a href="{% url 'application_url' data.application_id %}"><div id="app">Заявки</div></a> </li>
     <div class="cards">
     {% for order in data.orders %}
         <div id="card"><a href="{% url 'order_url' order.id %}" style="text-decoration: none">
@@ -26,7 +26,7 @@
             <div id="rect"></div>
             <div id="card_title">{{ order.title }}</div>
             <div id="card_main_information">{{ order.main_information }}</div>
-            <button id="add_to_application">Добавить в заявку</button>
+            <a href="{% url 'add_to_application_url' order.id %}"><button id="add_to_application">Добавить в заявку</button> </a>
         </a>
         </div>
     {% endfor %}

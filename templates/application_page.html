@@ -14,19 +14,23 @@
     <div id="mini_title_app">Введите площадь территории:                кв. км</div>
     <input id="rect_input">
     <div id="btn_enter">Рассчитать</div>
+    
+    <a href="{% url 'delete_application_url' data.application_id %}"><button id="delete_application">Удалить заявку</button></a>
 
     <div id="app_cont">
-        {% for order in data.orders %}
-            {% if order.app_flag %}
-                <div id="application_card">
-                    <img id="card_img_app_2" src={{ order.image }}>
-                    <div id="title_app_card">{{ order.title }}</div>
-                    <div id="inf_app_card">{{ order.main_information }}</div>
-                    <div id="rect" style="top: 130px; left: 25px;"></div>
-                    <input type="text" id="app_input" placeholder="Ваш комментарий">
-                    <div id="app_rect">Рассчитанная численность: <br> 270 человек</div>
-                </div>
-            {% endif %}
+        {% for order_in_app in data.order_in_application_list %}
+            <div id="application_card">
+                <img id="card_img_app_2" src="{{ order_in_app.order.image }}">
+                <div id="title_app_card">{{ order_in_app.order.title }}</div>
+                <div id="inf_app_card">{{ order_in_app.order.main_information }}</div>
+                <div id="rect" style="top: 130px; left: 25px;"></div>
+                <input type="text" id="app_input" placeholder="Ваш комментарий" value="{{ order_in_app.comment }}">
+                <div id="app_rect">Рассчитанная численность: <br> 270 человек</div>
+            </div>
+        {% empty %}
+            <div style="text-align: center; margin-top: 50px;">
+                В заявке пока нет услуг
+            </div>
         {% endfor %}
     </div>
 

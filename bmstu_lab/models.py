@@ -28,7 +28,7 @@ class Application(models.Model):
     creation_datetime = models.DateTimeField(auto_now_add=True)
     formation_datetime = models.DateTimeField(blank=True, null=True)
     completion_datetime = models.DateTimeField(blank=True, null=True)
-    client = models.ForeignKey(User, on_delete=models.DO_NOTHING, related_name='created_orders')
+    client = models.ForeignKey(User, on_delete=models.DO_NOTHING, related_name='created_orders', null=True, blank=True)
     manager = models.ForeignKey(User, on_delete=models.DO_NOTHING, related_name='managed_orders', blank=True, null=True)
 
     def __str__(self):
@@ -37,10 +37,10 @@ class Application(models.Model):
 class OrderInApplication(models.Model):
     application = models.ForeignKey(Application, on_delete=models.CASCADE)
     order = models.ForeignKey(Orders, on_delete=models.CASCADE)
-    quantity = models.CharField(max_length=255)
+    comment = models.CharField(max_length=255)
 
     def __str__(self):
-        return f"{self.order_id}-{self.order_id}"
+        return f"{self.application_id}-{self.order_id}"
 
     class Meta:
         unique_together = ('application', 'order'),
