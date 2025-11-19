@@ -1,0 +1,45 @@
+{% extends 'base.html' %}
+{% block title %}Список заказов{% endblock %}
+
+{% block content %}
+    <div id="menu"></div>
+    <div id="grey-block-2"></div>
+    <li><a href="{% url 'orders_url' %}"><div id="ser">Услуги</div></a> </li>
+    <img id="orders_img" src="http://localhost:9000/static/img/orders.png">
+    <img id="application_img" src="http://localhost:9000/static/img/application.png">
+    <div id="app">Заявки</div>
+
+
+    <div class="main_title" style="top: 100px; left: 456px;">Составление заявки</div>
+    <div id="mini_title_app">Введите площадь территории:                кв. км</div>
+    <input id="rect_input">
+    <div id="btn_enter">Рассчитать</div>
+    
+    <a href="{% url 'delete_application_url' data.application_id %}"><button id="delete_application">Удалить заявку</button></a>
+
+    <div id="app_cont">
+        {% for order_in_app in data.order_in_application_list %}
+            <div id="application_card">
+                <img id="card_img_app_2" src="{{ order_in_app.order.image }}">
+                <div id="title_app_card">{{ order_in_app.order.title }}</div>
+                <div id="inf_app_card">{{ order_in_app.order.main_information }}</div>
+                <div id="rect" style="top: 130px; left: 25px;"></div>
+                <form method="post" action="{% url 'update_comment_url' order_in_app.id %}">
+                    {% csrf_token %}
+                    <input type="text" 
+                           id="app_input" 
+                           name="comment" 
+                           placeholder="Ваш комментарий" 
+                           value="{{ order_in_app.comment }}"
+                           onchange="this.form.submit()">
+                </form>
+                <div id="app_rect">Рассчитанная численность: <br> 270 человек</div>
+            </div>
+        {% empty %}
+            <div style="text-align: center; margin-top: 50px;">
+                В заявке пока нет услуг
+            </div>
+        {% endfor %}
+    </div>
+
+{% endblock %}
