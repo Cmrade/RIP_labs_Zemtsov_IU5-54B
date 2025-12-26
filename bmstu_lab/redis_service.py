@@ -1,138 +1,144 @@
 import json
-import pickle
-from .redis_utils import get_redis_connection
-from .models import Orders, Application
+import redis
+from django.conf import settings
+from .models import Orders  # Модель осталась с тем же именем
+from .serializers import PopulationsSerializer  # Изменено с OrdersSerializer на PopulationsSerializer
+from django.core.cache import cache
 
 
 class RedisService:
     def __init__(self):
-        self.redis = get_redis_connection()
-
-    def cache_orders_list(self, timeout=3600):
-        """Кэширование списка услуг"""
-        if not self.redis:
-            return False
-
+        # Пытаемся подключиться к Redis
         try:
-            orders = Orders.objects.all()
-            orders_data = []
-
-            for order in orders:
-                orders_data.append({
-                    'id': order.id,
-                    'title': order.title,
-                    'main_information': order.main_information,
-                    'image': order.image,
-                    'more_information': order.more_information,
-                    'building_density': str(order.building_density) if order.building_density else None,
-                    'people_per_building': str(order.people_per_building) if order.people_per_building else None
-                })
-
-            # Сохраняем в Redis в формате JSON
-            self.redis.setex(
-                'orders_list',
-                timeout,
-                json.dumps(orders_data, ensure_ascii=False)
+            self.redis_client = redis.Redis(
+                host=getattr(settings, 'REDIS_HOST', 'localhost'),
+                port=getattr(settings, 'REDIS_PORT', 6379),
+                db=getattr(settings, 'REDIS_DB', 0),
+                decode_responses=True
             )
-            print(f"Кэшировано {len(orders_data)} услуг в Redis")
-            return True
+            self.redis_client.ping()  # Проверяем подключение
+            print("✅ Redis подключен успешно")
+        except redis.ConnectionError:
+            print("❌ Не удалось подключиться к Redis, используется Django cache")
+            self.redis_client = None
 
-        except Exception as e:
-            print(f"Ошибка кэширования услуг: {e}")
-            return False
+    def get_cached_populations(self):  # Изменено get_cached_orders -> get_cached_populations
+        """Получить закэшированные типы населения"""
+        cache_key = 'populations_list'  # Изменено 'orders_list' -> 'populations_list'
 
-    def get_cached_orders(self):
-        """Получение кэшированного списка услуг"""
-        if not self.redis:
-            return None
+        # Пробуем получить из Redis
+        if self.redis_client:
+            try:
+                cached_data = self.redis_client.get(cache_key)
+                if cached_data:
+                    print("📦 Используются кэшированные данные популяций из Redis")
+                    return json.loads(cached_data)
+            except Exception as e:
+                print(f"❌ Ошибка при получении популяций из Redis: {e}")
 
-        try:
-            cached_data = self.redis.get('orders_list')
-            if cached_data:
-                return json.loads(cached_data)
-            return None
-        except Exception as e:
-            print(f"Ошибка получения кэшированных данных: {e}")
-            return None
+        # Пробуем получить из Django cache
+        cached_data = cache.get(cache_key)
+        if cached_data:
+            print("📦 Используются кэшированные данные популяций из Django cache")
+            return cached_data
 
-    def cache_application_data(self, application_id, timeout=1800):
-        """Кэширование данных заявки"""
-        if not self.redis:
-            return False
+        return None
 
-        try:
-            application = Application.objects.get(id=application_id)
-            application_data = {
-                'id': application.id,
-                'status': application.status,
-                'title': application.title,
-                'territory_area': str(application.territory_area) if application.territory_area else None,
-                'calculated_population': str(
-                    application.calculated_population) if application.calculated_population else None,
-                'creation_datetime': application.creation_datetime.isoformat() if application.creation_datetime else None,
-            }
-
-            key = f'application_{application_id}'
-            self.redis.setex(key, timeout, json.dumps(application_data, ensure_ascii=False))
-            print(f"Кэширована заявка {application_id} в Redis")
-            return True
-
-        except Exception as e:
-            print(f"Ошибка кэширования заявки: {e}")
-            return False
-
-    def get_cached_application(self, application_id):
-        """Получение кэшированной заявки"""
-        if not self.redis:
-            return None
+    def cache_populations_list(self):  # Изменено cache_orders_list -> cache_populations_list
+        """Кэшировать список типов населения"""
+        cache_key = 'populations_list'  # Изменено 'orders_list' -> 'populations_list'
 
         try:
-            key = f'application_{application_id}'
-            cached_data = self.redis.get(key)
-            if cached_data:
-                return json.loads(cached_data)
-            return None
-        except Exception as e:
-            print(f"Ошибка получения кэшированной заявки: {e}")
-            return None
+            # Получаем данные из базы
+            populations = Orders.objects.all()  # Модель все еще Orders
+            serializer = PopulationsSerializer(populations, many=True)  # Изменено OrdersSerializer на PopulationsSerializer
+            data = serializer.data
 
-    def cache_cart_count(self, user_id, count, timeout=3600):
-        """Кэширование количества товаров в корзине"""
-        if not self.redis:
-            return False
+            # Кэшируем в Redis
+            if self.redis_client:
+                try:
+                    self.redis_client.setex(
+                        cache_key,
+                        3600,  # Время жизни кэша в секундах (1 час)
+                        json.dumps(data)
+                    )
+                    print("✅ Данные популяций успешно закэшированы в Redis")
+                except Exception as e:
+                    print(f"❌ Ошибка при кэшировании популяций в Redis: {e}")
 
-        try:
-            key = f'user_{user_id}_cart_count'
-            self.redis.setex(key, timeout, count)
-            return True
+            # Кэшируем в Django cache
+            cache.set(cache_key, data, 3600)
+            print("✅ Данные популяций успешно закэшированы в Django cache")
+
         except Exception as e:
-            print(f"Ошибка кэширования корзины: {e}")
-            return False
+            print(f"❌ Ошибка при кэшировании типов населения: {e}")
+
+    def invalidate_populations_cache(self):  # Изменено invalidate_orders_cache -> invalidate_populations_cache
+        """Инвалидировать кэш типов населения"""
+        cache_key = 'populations_list'  # Изменено 'orders_list' -> 'populations_list'
+
+        # Удаляем из Redis
+        if self.redis_client:
+            try:
+                self.redis_client.delete(cache_key)
+                print("🗑️ Кэш популяций Redis очищен")
+            except Exception as e:
+                print(f"❌ Ошибка при очистке кэша популяций Redis: {e}")
+
+        # Удаляем из Django cache
+        cache.delete(cache_key)
+        print("🗑️ Django cache популяций очищен")
 
     def get_cached_cart_count(self, user_id):
-        """Получение кэшированного количества товаров в корзине"""
-        if not self.redis:
-            return None
+        """Получить количество товаров в корзине из кэша"""
+        cache_key = f'cart_count_{user_id}'
 
-        try:
-            key = f'user_{user_id}_cart_count'
-            count = self.redis.get(key)
-            return int(count) if count else None
-        except Exception as e:
-            print(f"Ошибка получения кэшированной корзины: {e}")
-            return None
+        if self.redis_client:
+            try:
+                count = self.redis_client.get(cache_key)
+                if count:
+                    return int(count)
+            except Exception as e:
+                print(f"❌ Ошибка при получении количества корзины из Redis: {e}")
 
-    def clear_cache_pattern(self, pattern):
-        """Очистка кэша по паттерну"""
-        if not self.redis:
-            return False
+        return cache.get(cache_key)
 
-        try:
-            keys = self.redis.keys(pattern)
-            if keys:
-                self.redis.delete(*keys)
-                print(f"Удалено ключей: {len(keys)}")
-            return True
-        except Exception as e:
-            print(f"Ошибка очистки кэша: {e}")
-            return False
+    def cache_cart_count(self, user_id, count):
+        """Кэшировать количество товаров в корзине"""
+        cache_key = f'cart_count_{user_id}'
+
+        if self.redis_client:
+            try:
+                self.redis_client.setex(cache_key, 300, count)  # 5 минут
+            except Exception as e:
+                print(f"❌ Ошибка при кэшировании количества корзины в Redis: {e}")
+
+        cache.set(cache_key, count, 300)
+
+    def invalidate_cart_cache(self, user_id):
+        """Инвалидировать кэш корзины"""
+        cache_key = f'cart_count_{user_id}'
+
+        if self.redis_client:
+            try:
+                self.redis_client.delete(cache_key)
+            except Exception as e:
+                print(f"❌ Ошибка при очистке кэша корзины Redis: {e}")
+
+        cache.delete(cache_key)
+
+    # Методы для обратной совместимости (опционально, можно удалить позже)
+    def get_cached_orders(self):
+        """Устаревший метод для обратной совместимости"""
+        print("⚠️ Используется устаревший метод get_cached_orders(), используйте get_cached_populations()")
+        return self.get_cached_populations()
+
+    def cache_orders_list(self):
+        """Устаревший метод для обратной совместимости"""
+        print("⚠️ Используется устаревший метод cache_orders_list(), используйте cache_populations_list()")
+        self.cache_populations_list()
+
+    def invalidate_orders_cache(self):
+        """Устаревший метод для обратной совместимости"""
+        print("⚠️ Используется устаревший метод invalidate_orders_cache(), используйте invalidate_populations_cache()")
+        self.invalidate_populations_cache()

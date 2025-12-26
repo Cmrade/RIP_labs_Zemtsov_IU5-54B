@@ -9,24 +9,26 @@ class Orders(models.Model):
     more_information = models.CharField(max_length=600, blank=True, null=True)
     app_flag = models.BooleanField(default=False)
 
-    # НОВЫЕ ПОЛЯ ДЛЯ РАСЧЕТА
-    building_density = models.DecimalField(
-        max_digits=6,
-        decimal_places=2,
-        blank=True,
+    building_density = models.IntegerField(
+        verbose_name='Плотность застройки (домов/га)',
         null=True,
-        verbose_name="Плотность застройки [домов/га]"
+        blank=True,
+        help_text='Количество домов на гектар'
     )
-    people_per_building = models.DecimalField(
-        max_digits=4,
-        decimal_places=1,
-        blank=True,
+
+    people_per_building = models.IntegerField(
+        verbose_name='Количество человек в постройке',
         null=True,
-        verbose_name="Плотность человек в постройке [чел/дом]"
+        blank=True,
+        help_text='Среднее количество людей в одном доме'
     )
 
     def __str__(self):
         return self.title
+
+    class Meta:
+        verbose_name = 'Тип населения'
+        verbose_name_plural = 'Типы населения'
 
 
 class Application(models.Model):
@@ -47,12 +49,12 @@ class Application(models.Model):
     creation_datetime = models.DateTimeField(auto_now_add=True)
     formation_datetime = models.DateTimeField(blank=True, null=True)
     completion_datetime = models.DateTimeField(blank=True, null=True)
-    client = models.ForeignKey(User, on_delete=models.DO_NOTHING, related_name='created_orders', null=True, blank=True)
-    manager = models.ForeignKey(User, on_delete=models.DO_NOTHING, related_name='managed_orders', blank=True, null=True)
+    client = models.ForeignKey(User, on_delete=models.DO_NOTHING, related_name='created_density_calculations', null=True, blank=True)
+    manager = models.ForeignKey(User, on_delete=models.DO_NOTHING, related_name='managed_density_calculations', blank=True, null=True)
 
     # Пользовательские поля
-    title = models.CharField(max_length=100, blank=True, null=True, verbose_name="Название заявки")
-    description = models.TextField(blank=True, null=True, verbose_name="Описание заявки")
+    title = models.CharField(max_length=100, blank=True, null=True, verbose_name="Название расчета плотности")
+    description = models.TextField(blank=True, null=True, verbose_name="Описание расчета плотности")
 
     # ПОЛЕ ПЛОЩАДИ ТЕРРИТОРИИ
     territory_area = models.DecimalField(
@@ -73,58 +75,66 @@ class Application(models.Model):
     )
 
     def __str__(self):
-        return f"Заказ № {self.id}"
+        return f"Расчет плотности № {self.id}"
 
     def save(self, *args, **kwargs):
-        # Автоматическое заполнение client при создании
         if not self.client_id and hasattr(self, '_current_user'):
             self.client = self._current_user
         super().save(*args, **kwargs)
 
     def calculate_population(self):
-        """
-        Расчет численности населения по формуле: N = П × P_д × P_ч
-        где:
-        П – площадь территории [га]
-        P_д – плотность застройки [домов/га]
-        P_ч – плотность человек в одной постройке [чел/дом]
-        """
-        if not self.territory_area:
+        """Расчет численности населения на основе выбранных типов населения"""
+        if not self.territory_area or self.territory_area <= 0:
             return 0
 
-        # Получаем все услуги в заявке
-        order_applications = self.orderinapplication_set.all()
-        if not order_applications:
-            return 0
+        total_population = Decimal('0')
 
-        # Вычисляем средневзвешенные значения P_д и P_ч
-        total_building_density = 0
-        total_people_per_building = 0
-        valid_orders = 0
+        for population_in_calc in self.orderinapplication_set.all():
+            population = population_in_calc.order
 
-        for order_app in order_applications:
-            order = order_app.order
-            if order.building_density and order.people_per_building:
-                total_building_density += order.building_density
-                total_people_per_building += order.people_per_building
-                valid_orders += 1
+            if population.building_density and population.people_per_building:
+                # Преобразуем все значения в Decimal для точности
+                population_calc = Decimal(str(self.territory_area)) * \
+                             Decimal(str(population.building_density)) * \
+                             Decimal(str(population.people_per_building))
+                total_population += population_calc
 
-        if valid_orders == 0:
-            return 0
+        self.calculated_population = round(total_population, 2)
+        self.save()
 
-        # Средние значения
-        avg_building_density = total_building_density / valid_orders
-        avg_people_per_building = total_people_per_building / valid_orders
+        return total_population
 
-        # Применяем формулу: N = П × P_д × P_ч
-        calculated_population = self.territory_area * avg_building_density * avg_people_per_building
+    def get_status_display(self):
+        """Возвращает человеко-читаемое название статуса"""
+        status_map = {
+            'DRAFT': 'Черновик',
+            'DELETED': 'Удален',
+            'FORMED': 'Сформирован',
+            'COMPLETED': 'Завершен',
+            'REJECTED': 'Отклонен'
+        }
+        return status_map.get(self.status, self.status)
 
-        # Сохраняем вычисленное значение
-        self.calculated_population = calculated_population
-        self.save(update_fields=['calculated_population'])
+    def __str__(self):
+        return f"Расчет плотности №{self.id} - {self.get_status_display()}"
 
-        return calculated_population
+    class Meta:
+        verbose_name = 'Расчет плотности'
+        verbose_name_plural = 'Расчеты плотности'
 
+    def get_status_display(self):
+        """Возвращает человеко-читаемое название статуса"""
+        status_map = {
+            'DRAFT': 'Черновик',
+            'DELETED': 'Удален',
+            'FORMED': 'Сформирован',
+            'COMPLETED': 'Завершен',
+            'REJECTED': 'Отклонен'
+        }
+        return status_map.get(self.status, self.status)
+
+    def __str__(self):
+        return f"Расчет плотности №{self.id} - {self.get_status_display()}"
 
 
 class OrderInApplication(models.Model):
@@ -136,4 +146,6 @@ class OrderInApplication(models.Model):
         return f"{self.application_id}-{self.order_id}"
 
     class Meta:
-        unique_together = ('application', 'order'),
+        unique_together = ('application', 'order')
+        verbose_name = 'Население в расчете плотности'
+        verbose_name_plural = 'Населения в расчетах плотности'

@@ -31,6 +31,7 @@ ALLOWED_HOSTS = []
 # Application definition
 
 INSTALLED_APPS = [
+    'corsheaders',
     'django.contrib.admin',
     'django.contrib.auth',
     'django.contrib.contenttypes',
@@ -45,6 +46,7 @@ INSTALLED_APPS = [
 ]
 
 MIDDLEWARE = [
+    'corsheaders.middleware.CorsMiddleware',
     'django.middleware.security.SecurityMiddleware',
     'django.contrib.sessions.middleware.SessionMiddleware',
     'django.middleware.common.CommonMiddleware',
@@ -52,7 +54,7 @@ MIDDLEWARE = [
     'django.contrib.auth.middleware.AuthenticationMiddleware',
     'django.contrib.messages.middleware.MessageMiddleware',
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
-    #'bmstu_lab.middleware.DisableCSRFForAPI',
+    'bmstu_lab.middleware.DisableCSRFForAPI'
 ]
 
 ROOT_URLCONF = 'djangoProject.urls'
@@ -249,6 +251,39 @@ CACHES = {
     }
 }
 
+CORS_ALLOW_METHODS = [
+    'DELETE',
+    'GET',
+    'OPTIONS',
+    'PATCH',
+    'POST',
+    'PUT',
+]
+
+CORS_ALLOW_HEADERS = [
+    'accept',
+    'accept-encoding',
+    'authorization',
+    'content-type',
+    'dnt',
+    'origin',
+    'user-agent',
+    'x-csrftoken',
+    'x-requested-with',
+]
+
+# Настройки сессий для авторизации
+SESSION_COOKIE_SAMESITE = 'Lax'
+SESSION_COOKIE_SECURE = False  # True в production с HTTPS
+SESSION_COOKIE_HTTPONLY = True
+
+# Настройки CSRF
+CSRF_COOKIE_SAMESITE = 'Lax'
+CSRF_COOKIE_SECURE = False  # True в production с HTTPS
+
+CORS_ALLOW_ALL_ORIGINS = True  # Только для разработки!
+CORS_ALLOW_CREDENTIALS = True
+
 # Опционально: использование Redis для сессий
 SESSION_ENGINE = 'django.contrib.sessions.backends.cache'
 SESSION_CACHE_ALIAS = 'default'
@@ -256,3 +291,7 @@ SESSION_CACHE_ALIAS = 'default'
 # Настройки для Celery (если будете использовать)
 CELERY_BROKER_URL = 'redis://localhost:6379/0'
 CELERY_RESULT_BACKEND = 'redis://localhost:6379/0'
+
+ASYNC_SERVICE_URL = 'http://localhost:8081'
+ASYNC_SERVICE_TOKEN = 'my-secret-token-12345'
+ASYNC_RESULT_TOKEN = 'django-secret-token-67890'

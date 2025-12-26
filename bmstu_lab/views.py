@@ -9,7 +9,7 @@ from django.shortcuts import redirect, get_object_or_404
 from django.http import Http404
 from django.contrib.auth.decorators import login_required
 
-orders = [{'title': 'Древний город', 'image': 'http://localhost:9000/static/img/town.png', 'main_information': 'плотность ≈ 110 ч/га', 'more_information': '    Это основная жилая зона с усадебной застройкой. Плотность здесь была заметно ниже.\n\n    плотность населения ≈ 110 ч/га\n    плотность застройки ≈ 17 усадеб/га\n    количество жильцов в усадьбе ≈ 6 ч/ус', 'id': 1, 'app_flag': False},
+populations = [{'title': 'Древний город', 'image': 'http://localhost:9000/static/img/town.png', 'main_information': 'плотность ≈ 110 ч/га', 'more_information': '    Это основная жилая зона с усадебной застройкой. Плотность здесь была заметно ниже.\n\n    плотность населения ≈ 110 ч/га\n    плотность застройки ≈ 17 усадеб/га\n    количество жильцов в усадьбе ≈ 6 ч/ус', 'id': 1, 'app_flag': False},
             {'title': 'Крепость', 'image': 'http://localhost:9000/static/img/tower.png', 'main_information': 'плотность ≈ 135 ч/га', 'more_information': '    Здесь наблюдалась максимальная плотность, обусловленная дефицитом защищенного пространства. \n \n    плотность населения ≈ 135 ч/га\n    плотность застройки ≈ 25 усадеб/га\n    количество жильцов в усадьбе ≈ 5 ч/ус', 'id': 2, 'app_flag': True},
             {'title': 'Село', 'image': 'http://localhost:9000/static/img/village.png', 'main_information': 'плотность ≈ 75 ч/га', 'more_information': '    Плотность застройки в сельских поселениях была низкой и определялась сельскохозяйственными потребностями.\n \n    плотность населения ≈ 75 ч/га\n    плотность застройки ≈ 10 усадеб/га\n    количество жильцов в усадьбе ≈ 8 ч/ус', 'id': 3, 'app_flag': True},]
 application = {1: [2, 3]}
@@ -21,33 +21,22 @@ def hello(request):
         'current_date': date.today(),
         'list': ['python', 'django', 'html']
     }})
-'''
-def GetOrders(request):
-    return render(request, 'orders.html', {'data': {
-        'orders': orders,
-    }})
-
-def GetApplication(request, id):
-    return render(request, 'application_page.html', {'data': {
-        'orders': orders,
-    }})
-    '''
 
 @login_required
-def GetApplication(request, id):
+def GetDensityCalculation(request, id):
     user = request.user
 
     try:
-        application = Application.objects.get(id=id, client=user)
+        density_calculation = Application.objects.get(id=id, client=user)
 
-        if application.status == Application.ApplicationStatus.DELETED:
-            raise Http404("Заявка не найдена")
+        if density_calculation.status == Application.ApplicationStatus.DELETED:
+            raise Http404("Расчет плотности не найден")
     except Application.DoesNotExist:
-        order_in_application_list = []
+        population_in_density_calculation_list = []
     else:
-        order_in_application_list = OrderInApplication.objects.filter(application=application)
+        population_in_density_calculation_list = OrderInApplication.objects.filter(application=density_calculation)
 
-    orders_in_draft_application = OrderInApplication.objects.filter(
+    populations_in_draft_density_calculation = OrderInApplication.objects.filter(
         application__client=user,
         application__status=Application.ApplicationStatus.DRAFT
     ).count()
@@ -56,22 +45,12 @@ def GetApplication(request, id):
                   'calculate_of_population.html',
                   {
                       "data": {
-                          "application_id": get_current_application_id("Admin1"),
-                          "order_in_application_list": order_in_application_list,
+                          "density_calculation_id": get_current_density_calculation_id("Admin1"),
+                          "population_in_density_calculation_list": population_in_density_calculation_list,
                       }
                   })
-'''
-def GetOrder(request, id):
-    order={}
-    for i in orders:
-        if i['id']==id:
-            order=i
-    return render(request, 'order.html', {'data' : {
-        'order': order,
-        'current_id': 1,
-    }})'''
 
-def get_order_page(request, id):
+def get_population_page(request, id):
 
     query = "SELECT title, image, more_information FROM bmstu_lab_orders WHERE id = %s"
 
@@ -95,36 +74,36 @@ def get_order_page(request, id):
 
 
 # Обновите функции для использования request.user
-def get_orders_list_page(request):
+def get_populations_list_page(request):
     user = request.user
-    order_title = request.GET.get('title', '')
+    population_title = request.GET.get('title', '')
 
     if user.is_authenticated:
-        orders_in_draft_application = OrderInApplication.objects.filter(
+        populations_in_draft_density_calculation = OrderInApplication.objects.filter(
             application__client=user,
             application__status=Application.ApplicationStatus.DRAFT
         ).count()
     else:
-        orders_in_draft_application = 0
+        populations_in_draft_density_calculation = 0
 
     return render(request,
                   'archaeological_objects.html',
                   {
                       "data": {
-                          "orders": Orders.objects.filter(title__istartswith=order_title),
-                          "items_in_cart": orders_in_draft_application,
-                          "product_title": order_title,
-                          "application_id": get_current_application_id(user) if user.is_authenticated else None,
+                          "populations": Orders.objects.filter(title__istartswith=population_title),
+                          "items_in_cart": populations_in_draft_density_calculation,
+                          "product_title": population_title,
+                          "density_calculation_id": get_current_density_calculation_id(user) if user.is_authenticated else None,
                           "user": user
                       }
                   })
 
 
-def add_to_application(request, order_id):
-    order = get_object_or_404(Orders, id=order_id)
+def add_to_density_calculation(request, population_id):
+    population = get_object_or_404(Orders, id=population_id)
 
     user = User.objects.get(username="Admin1")
-    application, created = Application.objects.get_or_create(
+    density_calculation, created = Application.objects.get_or_create(
         client=user,
         status=Application.ApplicationStatus.DRAFT,
         defaults={
@@ -134,23 +113,23 @@ def add_to_application(request, order_id):
     )
 
     OrderInApplication.objects.get_or_create(
-        application=application,
-        order=order,
+        application=density_calculation,
+        order=population,
         defaults={'comment': ''}
     )
 
-    return redirect('orders_url')
+    return redirect('populations_url')
 
-def delete_application(request, application_id):
-    application = get_object_or_404(Application, id=application_id)
+def delete_density_calculation(request, density_calculation_id):
+    density_calculation = get_object_or_404(Application, id=density_calculation_id)
 
     with connection.cursor() as cursor:
         cursor.execute(
             "UPDATE bmstu_lab_application SET status = 'DELETED' WHERE id = %s",
-            [application_id]
+            [density_calculation_id]
         )
 
-    application, created = Application.objects.get_or_create(
+    density_calculation, created = Application.objects.get_or_create(
         client_id=1,
         status=Application.ApplicationStatus.DRAFT,
         defaults={
@@ -159,7 +138,7 @@ def delete_application(request, application_id):
         }
     )
 
-    return redirect('orders_url')
+    return redirect('populations_url')
 
 def sendText(request):
     if request.method == 'GET':
@@ -186,30 +165,17 @@ def sendText(request):
                       })
     return HttpResponse("Method not allowed", status=405)
 
-def get_current_application_id(user):
-    application = get_object_or_404(Application, status=Application.ApplicationStatus.DRAFT)
-    return application.id
+def get_current_density_calculation_id(user):
+    density_calculation = get_object_or_404(Application, status=Application.ApplicationStatus.DRAFT)
+    return density_calculation.id
 
-def update_comment(request, order_in_app_id):
+def update_comment(request, population_in_density_calculation_id):
     if request.method == 'POST':
-        order_in_app = get_object_or_404(OrderInApplication, id=order_in_app_id)
+        population_in_density_calculation = get_object_or_404(OrderInApplication, id=population_in_density_calculation_id)
         new_comment = request.POST.get('comment', '')
 
         # Обновляем комментарий через ORM
-        order_in_app.comment = new_comment
-        order_in_app.save()
+        population_in_density_calculation.comment = new_comment
+        population_in_density_calculation.save()
 
-        return redirect('application_url', id=order_in_app.application.id)
-'''
-        ans_search = []
-        if input_text and input_text != 'ПОИСК':
-            for order in orders:
-                if input_text.lower() in order['title'].lower():
-                    ans_search.append(order)
-        else:
-            ans_search = []
-
-        return render(request, 'orders_page.html', {'data': {
-            'orders': ans_search
-        }})
-    '''
+        return redirect('density_calculation_url', id=population_in_density_calculation.application.id)
