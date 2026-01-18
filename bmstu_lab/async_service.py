@@ -1,101 +1,99 @@
+# async_service.py
 import requests
-from django.conf import settings
 import logging
-from decimal import Decimal
-import json
-from .utils import decimal_to_float, DecimalEncoder
-from .models import Orders
 
 logger = logging.getLogger(__name__)
 
 
 class AsyncPopulationService:
-    """Сервис для асинхронного расчета численности населения"""
+    def __init__(self):
+        self.base_url = 'http://localhost:8081'
+        self.token = 'my-secret-token-12345'
+        self.timeout = 10
 
-    @staticmethod
-    def send_calculation_request(density_calculation):
-        """
-        Отправляет расчет плотности на асинхронный расчет в Go-сервис
-        """
+    def send_calculation_request(self, application, session_key=None):
+        """Отправляет запрос на расчет в FastAPI сервис (без проверки сессии)"""
+
         try:
-            # Подготавливаем данные для отправки
+            # Формируем данные для расчета
             orders_data = []
-
-            for population_in_calc in density_calculation.orderinapplication_set.all():
-                population = population_in_calc.order
-
-                # Убедимся, что значения целочисленные и преобразуем в int
-                building_density = int(population.building_density) if population.building_density else 0
-                people_per_building = int(population.people_per_building) if population.people_per_building else 0
-
+            for order_in_app in application.orderinapplication_set.all():
+                order = order_in_app.order
                 orders_data.append({
-                    'building_density': building_density,
-                    'people_per_building': people_per_building,
+                    "building_density": float(order.building_density or 0),
+                    "people_per_building": float(order.people_per_building or 0)
                 })
 
-            # Преобразуем Decimal в float для сериализации JSON
-            territory_area = float(density_calculation.territory_area) if density_calculation.territory_area else 0.0
-
-            # Формируем запрос
+            # Данные для отправки
             payload = {
-                'application_id': density_calculation.id,
-                'territory_area': territory_area,
-                'orders': orders_data,
-                'token': settings.ASYNC_SERVICE_TOKEN,
+                "application_id": application.id,
+                "token": self.token,
+                "territory_area": float(application.territory_area or 0),
+                "orders": orders_data
             }
 
-            # Рекурсивно преобразуем все Decimal во float
-            payload = decimal_to_float(payload)
+            headers = {
+                "Content-Type": "application/json",
+                "X-Token": self.token
+            }
 
-            # Логируем данные для отладки
-            logger.info(f"Sending async calculation request for density calculation {density_calculation.id}")
-            logger.info(f"Payload: {json.dumps(payload, indent=2, cls=DecimalEncoder)}")
-            logger.info(f"Go service URL: {settings.ASYNC_SERVICE_URL}/calculate_population")
+            logger.info(f"📤 Отправка запроса в FastAPI: {self.base_url}/calculate_population")
 
-            # Отладочная информация о типах данных
-            for i, order in enumerate(orders_data):
-                logger.info(
-                    f"Order {i}: building_density={order['building_density']} (type: {type(order['building_density'])}), "
-                    f"people_per_building={order['people_per_building']} (type: {type(order['people_per_building'])})")
-
-            # Явно сериализуем с помощью нашего энкодера
-            json_data = json.dumps(payload, cls=DecimalEncoder)
-
-            # Отправляем запрос в Go-сервис
+            # Отправляем запрос без cookies (сессия не нужна)
             response = requests.post(
-                f"{settings.ASYNC_SERVICE_URL}/calculate_population",
-                data=json_data,
-                timeout=10,
-                headers={'Content-Type': 'application/json'}
+                f"{self.base_url}/calculate_population",
+                json=payload,
+                headers=headers,
+                timeout=self.timeout
             )
 
-            logger.info(f"Response status: {response.status_code}")
-            logger.info(f"Response content: {response.text}")
+            logger.info(f"📥 Ответ от FastAPI: статус {response.status_code}")
 
-            if response.status_code == 202:  # Accepted
-                logger.info(f"Async calculation started for density calculation {density_calculation.id}")
+            if response.status_code == 200:
+                result = response.json()
+                if result.get('status') == 'processing':
+                    logger.info(f"✅ Расчет запущен для заявки {application.id}")
+                    return {
+                        "status": "processing",
+                        "message": "Расчет запущен успешно",
+                        "response": result
+                    }
+                else:
+                    logger.error(f"❌ Ошибка от сервиса: {result}")
+                    return {
+                        "status": "error",
+                        "message": result.get('detail', 'Неизвестная ошибка'),
+                        "response": result
+                    }
+            elif response.status_code == 401:
+                logger.error(f"❌ Неавторизован: Неверный сервисный токен")
                 return {
-                    'status': 'processing',
-                    'message': 'Расчет запущен в асинхронном режиме',
-                    'response': response.json() if response.content else None
+                    "status": "error",
+                    "message": "Неверный сервисный токен",
+                    "response": response.text
                 }
             else:
-                logger.error(f"Async service error: {response.status_code}, Response: {response.text}")
+                logger.error(f"❌ Ошибка от сервиса: {response.status_code}")
                 return {
-                    'status': 'error',
-                    'message': f'Ошибка сервиса: {response.status_code}',
-                    'response': response.text
+                    "status": "error",
+                    "message": f"Ошибка от сервиса: {response.status_code}",
+                    "response": response.text
                 }
 
-        except requests.exceptions.RequestException as e:
-            logger.error(f"Async service connection error: {e}")
+        except requests.exceptions.ConnectionError:
+            logger.error(f"❌ FastAPI сервис недоступен: {self.base_url}")
             return {
-                'status': 'error',
-                'message': f'Ошибка подключения к Go-сервису: {str(e)}',
+                "status": "error",
+                "message": "Асинхронный сервис недоступен",
+                "response": None
             }
         except Exception as e:
-            logger.error(f"Unexpected error in async service: {e}", exc_info=True)
+            logger.error(f"❌ Ошибка при отправке запроса: {e}")
             return {
-                'status': 'error',
-                'message': f'Неожиданная ошибка: {str(e)}',
+                "status": "error",
+                "message": f"Ошибка: {str(e)}",
+                "response": None
             }
+
+
+async_population_service = AsyncPopulationService()

@@ -25,7 +25,7 @@ SECRET_KEY = 'django-insecure-a(7@y$^$7$))#!b%-zt!e^bj9jk75&445=3^!z(*f-@c(#k8xy
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = True
 
-ALLOWED_HOSTS = []
+ALLOWED_HOSTS = ['localhost', '127.0.0.1', '0.0.0.0']  # Добавили хосты
 
 
 # Application definition
@@ -45,6 +45,9 @@ INSTALLED_APPS = [
     'rest_framework.authtoken',
 ]
 
+# settings.py - внесите эти изменения
+
+# settings.py - исправьте MIDDLEWARE
 MIDDLEWARE = [
     'corsheaders.middleware.CorsMiddleware',
     'django.middleware.security.SecurityMiddleware',
@@ -54,8 +57,97 @@ MIDDLEWARE = [
     'django.contrib.auth.middleware.AuthenticationMiddleware',
     'django.contrib.messages.middleware.MessageMiddleware',
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
-    'bmstu_lab.middleware.DisableCSRFForAPI'
+    'bmstu_lab.middleware.DisableCSRFForAPI',  # Включите
+    # УБЕРИТЕ СТРОКУ С DebugSessionMiddleware пока что для теста
+    # 'bmstu_lab.middleware.DebugSessionMiddleware',
 ]
+
+# УПРОЩАЕМ настройки CSRF
+CSRF_COOKIE_HTTPONLY = False
+CSRF_COOKIE_SAMESITE = 'Lax'
+CSRF_COOKIE_SECURE = False
+
+# НАСТРОЙКИ СЕССИЙ - КРИТИЧНО ВАЖНО
+SESSION_ENGINE = 'django.contrib.sessions.backends.db'  # Или 'django.contrib.sessions.backends.cache'
+SESSION_COOKIE_NAME = 'sessionid'
+SESSION_COOKIE_HTTPONLY = True  # Для безопасности от XSS
+SESSION_COOKIE_SECURE = False  # False для разработки, True для production с HTTPS
+SESSION_COOKIE_SAMESITE = 'Lax'  # Разрешает отправку кук с CORS
+SESSION_COOKIE_AGE = 1209600  # 2 недели
+SESSION_SAVE_EVERY_REQUEST = True  # Обновлять сессию при каждом запросе
+SESSION_EXPIRE_AT_BROWSER_CLOSE = False  # Сохранять при закрытии браузера
+
+# НАСТРОЙКИ REST FRAMEWORK - ОЧЕНЬ ВАЖНО
+REST_FRAMEWORK = {
+    'DEFAULT_FILTER_BACKENDS': [
+        'django_filters.rest_framework.DjangoFilterBackend'
+    ],
+    'DEFAULT_AUTHENTICATION_CLASSES': [],  # Убрали классы аутентификации
+    'DEFAULT_PERMISSION_CLASSES': [],
+    'DEFAULT_SCHEMA_CLASS': 'drf_spectacular.openapi.AutoSchema',
+}
+
+# НАСТРОЙКИ CORS
+CORS_ALLOWED_ORIGINS = [
+    "http://localhost:3000",
+    "http://127.0.0.1:3000",
+    "http://localhost:8081",
+    "http://127.0.0.1:8081",
+]
+
+CORS_ALLOW_CREDENTIALS = True  # Разрешаем передачу кук
+CORS_ALLOW_ALL_ORIGINS = False  # Отключаем для безопасности
+
+# ЛОГГИРОВАНИЕ для отладки
+LOGGING = {
+    'version': 1,
+    'disable_existing_loggers': False,
+    'formatters': {
+        'verbose': {
+            'format': '{levelname} {asctime} {module} {message}',
+            'style': '{',
+        },
+        'simple': {
+            'format': '{levelname} {message}',
+            'style': '{',
+        },
+    },
+    'handlers': {
+        'console': {
+            'level': 'DEBUG',
+            'class': 'logging.StreamHandler',
+            'formatter': 'simple'
+        },
+        'file': {
+            'level': 'DEBUG',
+            'class': 'logging.FileHandler',
+            'filename': 'django_debug.log',
+            'formatter': 'verbose'
+        },
+    },
+    'loggers': {
+        'django': {
+            'handlers': ['console'],
+            'level': 'INFO',
+        },
+        'bmstu_lab': {
+            'handlers': ['console', 'file'],
+            'level': 'DEBUG',
+            'propagate': True,
+        },
+        'django.request': {
+            'handlers': ['console', 'file'],
+            'level': 'DEBUG',
+            'propagate': False,
+        },
+        'django.security.csrf': {
+            'handlers': ['console', 'file'],
+            'level': 'DEBUG',
+            'propagate': False,
+        },
+    },
+}
+
 
 ROOT_URLCONF = 'djangoProject.urls'
 
@@ -221,22 +313,15 @@ SPECTACULAR_SETTINGS = {
     },
 }
 
-# Настройки REST Framework с аутентификацией
-REST_FRAMEWORK = {
-    'DEFAULT_FILTER_BACKENDS': [
-        'django_filters.rest_framework.DjangoFilterBackend'
-    ],
-    'DEFAULT_SCHEMA_CLASS': 'drf_spectacular.openapi.AutoSchema',
-    'DEFAULT_AUTHENTICATION_CLASSES': [
-        'rest_framework.authentication.TokenAuthentication',
-        'rest_framework.authentication.SessionAuthentication',
-    ],
-    'DEFAULT_PERMISSION_CLASSES': [
-        'rest_framework.permissions.IsAuthenticatedOrReadOnly',
-    ],
-}
-
-CSRF_COOKIE_HTTPONLY = False
+CSRF_USE_SESSIONS = False  # Хранить CSRF токен в cookie, не в сессии
+CSRF_TRUSTED_ORIGINS = [
+    'http://localhost:3000',
+    'http://127.0.0.1:3000',
+    'http://localhost:8000',
+    'http://127.0.0.1:8000',
+    'http://localhost:8081',
+    'http://127.0.0.1:8081',
+]
 
 CACHES = {
     'default': {
@@ -272,26 +357,14 @@ CORS_ALLOW_HEADERS = [
     'x-requested-with',
 ]
 
-# Настройки сессий для авторизации
-SESSION_COOKIE_SAMESITE = 'Lax'
-SESSION_COOKIE_SECURE = False  # True в production с HTTPS
-SESSION_COOKIE_HTTPONLY = True
-
-# Настройки CSRF
-CSRF_COOKIE_SAMESITE = 'Lax'
-CSRF_COOKIE_SECURE = False  # True в production с HTTPS
-
-CORS_ALLOW_ALL_ORIGINS = True  # Только для разработки!
-CORS_ALLOW_CREDENTIALS = True
-
-# Опционально: использование Redis для сессий
-SESSION_ENGINE = 'django.contrib.sessions.backends.cache'
-SESSION_CACHE_ALIAS = 'default'
-
 # Настройки для Celery (если будете использовать)
 CELERY_BROKER_URL = 'redis://localhost:6379/0'
 CELERY_RESULT_BACKEND = 'redis://localhost:6379/0'
 
+# Настройки для асинхронного сервиса
 ASYNC_SERVICE_URL = 'http://localhost:8081'
 ASYNC_SERVICE_TOKEN = 'my-secret-token-12345'
-ASYNC_RESULT_TOKEN = 'django-secret-token-67890'
+ASYNC_RESULT_TOKEN = 'my-secret-token-12345'  # Тот же токен для результатов
+DJANGO_BASE_URL = "http://localhost:8000"
+
+ASYNC_SERVICE_AUTH_KEY = 'SECRET_KEY_12345678'

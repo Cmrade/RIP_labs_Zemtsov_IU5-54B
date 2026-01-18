@@ -13,7 +13,11 @@ from django.conf.urls.static import static
 from drf_spectacular.views import SpectacularAPIView, SpectacularRedocView, SpectacularSwaggerView
 from bmstu_lab.api_views import CSRFTokenView
 
+from bmstu_lab.api_views import MediaViewSet
+
 router = DefaultRouter()
+
+router.register(r'media', MediaViewSet, basename='media')
 router.register(r'populations', PopulationsViewSet)
 router.register(r'density_calculations', ApplicationViewSet, basename='density_calculation')
 router.register(r'population-in-density-calculation', PopulationInDensityCalculationViewSet)
@@ -33,12 +37,28 @@ urlpatterns = [
     path('update_comment/<int:population_in_density_calculation_id>/', views.update_comment, name='update_comment_url'),
     path('api/', include(router.urls)),
     path('api/cart/', CartView.as_view(), name='cart'),
-    path('api/density_calculations/add_population/<int:population_id>/',
-         AddPopulationToDensityCalculationView.as_view(),
-         name='add_population_to_density_calculation'),
+
+    # ЭТУ СТРОКУ НУЖНО УДАЛИТЬ ИЛИ ЗАКОММЕНТИРОВАТЬ:
+    # path('api/density_calculations/add_population/<int:population_id>/',
+    #      AddPopulationToDensityCalculationView.as_view(),
+    #      name='add_population_to_density_calculation'),
+
     path('api/users/update_profile/', UserViewSet.as_view({'put': 'update_profile'}), name='update_profile'),
     path('api/users/login/', UserViewSet.as_view({'post': 'login'}), name='login'),
     path('api/users/logout/', UserViewSet.as_view({'post': 'logout'}), name='logout'),
+
+    path('api/cart/check_density_calculation/<int:pk>/',
+         CheckDensityCalculationView.as_view(),
+         name='check_density_calculation'),
+
+    path('api/cart/get_or_create_draft/',
+         GetOrCreateDraftView.as_view(),
+         name='get_or_create_draft'),
+
+    path('api/cart/', CartView.as_view(), name='cart'),
+    path('api/cart/add/<int:population_id>/',
+         AddToCartView.as_view(),
+         name='add_to_cart'),
 
     # DRF Spectacular URLs
     path('api/schema/', SpectacularAPIView.as_view(), name='schema'),
@@ -69,6 +89,16 @@ urlpatterns = [
     path('api/density_calculations/<int:pk>/form/',
          ApplicationViewSet.as_view({'put': 'form'}),
          name='density_calculation-form'),
+
+    # Явный путь для добавления населения в расчет плотности
+    path('api/density_calculations/<int:pk>/populations/',
+         ApplicationViewSet.as_view({'post': 'add_population_to_density_calculation'}),
+         name='density_calculation-add-population'),
+    path('api/density_calculations/get_or_create_draft/', GetOrCreateDraftView.as_view(), name='get_or_create_draft'),
+    path('api/auth/check_session/', CheckSessionView.as_view(), name='check_session'),
+    path('api/density_calculations/<int:pk>/async_calculate/', AsyncCalculateView.as_view(), name='async_calculate'),
+    path('api/density_calculations/<int:pk>/async_result/', AsyncResultView.as_view(), name='async_result'),
+    path('api/debug/check_session_auth/', CheckSessionAuthView.as_view(), name='check_session_auth'),
 ]
 
 if settings.DEBUG:
