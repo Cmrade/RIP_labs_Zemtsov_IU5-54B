@@ -1,0 +1,31 @@
+### Health Check
+GET http://127.0.0.1:8081/health
+Accept: application/json
+
+### Получить документацию
+GET http://127.0.0.1:8081/docs
+
+### Запустить расчет населения
+POST http://127.0.0.1:8081/calculate_population
+Content-Type: application/json
+X-Token: my-secret-token-12345
+
+{
+  "application_id": 123,
+  "token": "my-secret-token-12345",
+  "territory_area": 100.5,
+  "orders": [
+    {
+      "building_density": 17,
+      "people_per_building": 6
+    },
+    {
+      "building_density": 25,
+      "people_per_building": 5
+    }
+  ]
+}
+
+### Проверить статус расчета
+GET http://127.0.0.1:8081/status/123
+Accept: application/json

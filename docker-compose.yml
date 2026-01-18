@@ -1,0 +1,31 @@
+version: '3.8'
+
+services:
+  async-service:
+    build: .
+    ports:
+      - "8081:8081"
+    environment:
+      - DJANGO_URL=http://django:8000
+      - ASYNC_SERVICE_TOKEN=my-secret-token-12345
+      - DJANGO_AUTH_TOKEN=django-secret-token-67890
+      - DELAY_MIN=5
+      - DELAY_MAX=10
+    networks:
+      - app-network
+    depends_on:
+      - django
+    restart: unless-stopped
+
+  django:
+    image: your-django-app:latest  # Замените на ваш образ Django
+    ports:
+      - "8000:8000"
+    networks:
+      - app-network
+    environment:
+      - ALLOWED_HOSTS=localhost,async-service,django
+
+networks:
+  app-network:
+    driver: bridge
